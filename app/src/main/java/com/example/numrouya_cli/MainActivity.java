@@ -127,52 +127,36 @@ public class MainActivity extends AppCompatActivity {
             .serverHost(MQTT_BROKER_HOST)
             .serverPort(MQTT_BROKER_PORT)
             .sslWithDefaultConfig()
-            //.automaticReconnect()
-            // .initialDelay(1, TimeUnit.SECONDS)
-            //.maxDelay(10, TimeUnit.SECONDS)
-            //.applyAutomaticReconnect()
             .useMqttVersion3()
             .addConnectedListener(context -> {
-                Log.d(">>>>>MainActivity", "Connected to MQTT broker");
+                Log.d("Initialization", "Connected successfully");
+ /////##### watchdog to be removed
                 cancelReconnectWatchdog();
                 runOnUiThread(() -> {
-                    statusTextView.setText("Connected to MQTT broker");
+                    statusTextView.setText("Connected successfully");
                     Toast.makeText(MainActivity.this, "Connected successfully", Toast.LENGTH_SHORT).show();
                 });
                 subscribeToTopics();
             })
             .addDisconnectedListener(context -> {
                 Throwable cause = context.getCause();
-                Log.d(">>>>>MainActivity", "Disconnected from MQTT broker: " + (cause != null ? cause.getMessage() : "Unknown cause"));
+                Log.d("Initialization", "Disconnected :" + (cause != null ? cause.getMessage() : "Unknown cause"));
                 runOnUiThread(() -> {
-                    if (mqttClient != null) {
-                        switch (mqttClient.getState()) {
-                            case DISCONNECTED_RECONNECT:
-                            case CONNECTING_RECONNECT:
-                                Log.d(">>>>>1- MainActivity", "Reconnecting to MQTT broker...");
-                                statusTextView.setText("Reconnecting to MQTT broker...");
-                                scheduleReconnectWatchdog();
-                                break;
-                            default:
-                                if (cause != null && cause.getMessage() != null) {
-                                    if (isNotAuthorizedError(cause)) {
-                                        Log.d(">>>>>2- MainActivity", "Disconnected: NOT_AUTHORIZED (check MQTT username/password in app config)");
-                                        statusTextView.setText("MQTT auth failed (NOT_AUTHORIZED). Check username/password.");
-                                        return;
-                                    }
-                                    Log.d(">>>>>3- MainActivity", "Disconnected: " + cause.getMessage());
-                                    statusTextView.setText("Disconnected: " + cause.getMessage());
-                                } else {
-                                    Log.d(">>>>>3- MainActivity", "Disconnected from MQTT broker");
-                                    statusTextView.setText("Disconnected from MQTT broker");
-                                }
-                                break;
-                        }
-                    } else {
-                        statusTextView.setText("Disconnected from MQTT broker");
+                    switch (mqttClient.getState()) {
+                        case DISCONNECTED_RECONNECT:
+                        case CONNECTING_RECONNECT:
+                            Log.d("Initialization", "Reconnecting...");
+                            statusTextView.setText("Reconnecting...");
+                            // ##### to be removed
+                            scheduleReconnectWatchdog();
+                            break;
+                        default:
+                            Log.d("Initialization", "Disconnected "+ (cause != null ? "with cause: " + cause.getMessage() : "without specific cause"));
+                            statusTextView.setText("Disconnected ");
+                            break;
                     }
                 });
-                if (mqttClient != null && DISCONNECTED == mqttClient.getState() && !isNotAuthorizedError(cause)) {
+                if (mqttClient != null && DISCONNECTED == mqttClient.getState()) {
                     connectToMqttBroker();
                 }
             })
@@ -184,70 +168,61 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onStart() {
         super.onStart();
-        Log.d(">>>>>0 ", "onStart called");
-        if (mqttClient == null) {
-            Log.d(">>>>>0.1 ", "MQTT client is null in onStart, skipping connection attempt");
-            return;
-        }
-        if (mqttClient != null) {
-            Log.d(">>>>>1.0 ", "MQTT client is not null in onStart, skipping connection attempt");
-            switch (mqttClient.getState()) {
-                case DISCONNECTED:
-                    // write a debug message to logcat
-                    Log.d(">>>>>1.1 ", "App resumed. Reconnecting to MQTT...");
-                    runOnUiThread(() -> statusTextView.setText("App resumed. Reconnecting to MQTT..."));
-                    connectToMqttBroker();
-                    break;
-                case CONNECTING:
-                    Log.d(">>>>>2", "App resumed. MQTT is connecting...");
-                    runOnUiThread(() -> statusTextView.setText("MQTT is connecting..."));
-                    break;
-                case CONNECTING_RECONNECT:
-                    Log.d(">>>>>3", "App resumed. MQTT is reconnecting...");
-                    runOnUiThread(() -> statusTextView.setText("MQTT is reconnecting..."));
-                    scheduleReconnectWatchdog();
-                    break;
-                case CONNECTED:
-                    Log.d(">>>>>4 ", "App resumed. Already connected to MQTT.");
-                    runOnUiThread(() -> statusTextView.setText("Connected to MQTT broker"));
-                    break;
-                case DISCONNECTED_RECONNECT:
-                    Log.d(">>>>>5 ", "App resumed. MQTT is in disconnected-reconnect state.");
-                    runOnUiThread(() -> statusTextView.setText("MQTT is reconnecting..."));
-                    scheduleReconnectWatchdog();
-                    break;
-                default:
-                    Log.d(">>>>>6 ", "Default");
-                    break;
-            }
+        Log.d("Start", "started");
+        switch (mqttClient.getState()) {
+            case DISCONNECTED:
+                // write a debug message to logcat
+                Log.d("Start", "Disconnected. Attempting to connect...");
+                runOnUiThread(() -> statusTextView.setText("Disconnected. Attempting to connect..."));
+                connectToMqttBroker();
+                break;
+            case CONNECTED:
+                Log.d("Start", "Already connected.");
+                runOnUiThread(() -> statusTextView.setText("Connected"));
+                break;
+            /////// ########### these cases to be removed, as the client should handle reconnection automatically, and we will rely on the watchdog to recover if reconnection stalls
+            case CONNECTING:
+                Log.d("Start", "Connecting ...");
+                runOnUiThread(() -> statusTextView.setText("Connecting ..."));
+                break;
+            case CONNECTING_RECONNECT:
+                Log.d("Start", "Reconnecting ...");
+                runOnUiThread(() -> statusTextView.setText("Reconnecting ..."));
+                ///######## to be removed
+                scheduleReconnectWatchdog();
+                break;
+            case DISCONNECTED_RECONNECT:
+                Log.d("Start", "Reconnecting ...");
+                runOnUiThread(() -> statusTextView.setText("Reconnecting ..."));
+                scheduleReconnectWatchdog();
+                break;
+            default:
+                Log.d("Start", "Default");
+                break;
         }
     }
 
     private void connectToMqttBroker() {
-        if (mqttClient == null) {
-            return;
-        }
-
         if (MQTT_USERNAME.trim().isEmpty() || PASSWORD.trim().isEmpty()) {
-            runOnUiThread(() -> statusTextView.setText("MQTT config error: username/password is empty"));
+            runOnUiThread(() -> statusTextView.setText("Config error: username/password is empty"));
             return;
         }
 
         switch (mqttClient.getState()) {
             case CONNECTED:
-                Log.d(">>>>>300.1 ", "App resumed. Already connected to MQTT.");
+                Log.d("Connect", "App resumed. Already connected to MQTT.");
             case CONNECTING:
-                Log.d(">>>>>300.2 ", "App resumed. MQTT is connecting...");
+                Log.d("Connect", "App resumed. MQTT is connecting...");
             case DISCONNECTED_RECONNECT:
-                Log.d(">>>>>300.3 ", "App resumed. MQTT is in disconnected-reconnect state.");
+                Log.d("Connect", "App resumed. MQTT is in disconnected-reconnect state.");
             case CONNECTING_RECONNECT:
-                Log.d(">>>>>300.4 ", "App resumed. MQTT is reconnecting...");
+                Log.d("Connect", "App resumed. MQTT is reconnecting...");
             default:
                 break;
         }
 
         if (isManualConnectInProgress) {
-            Log.d(">>>>>300.5 ", "App resumed. Manual connect in progress.");
+            Log.d("Connect", "App resumed. Manual connect in progress.");
             return;
         }
 
@@ -299,7 +274,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void recoverIfReconnectStalled() {
         isReconnectWatchdogScheduled = false;
-        Log.d(">>>>>100", "Reconnection stalled. Checking...");
+        Log.d("Reconnect", "Reconnection stalled. Checking...");
         if (isActivityDestroying || mqttClient == null) {
             return;
         }
@@ -307,7 +282,7 @@ public class MainActivity extends AppCompatActivity {
         switch (mqttClient.getState()) {
             case DISCONNECTED_RECONNECT:
             case CONNECTING_RECONNECT:
-                Log.w(">>>>>MainActivity", "Reconnect appears stalled. Forcing fresh MQTT connect attempt.");
+                Log.w("Reconnect", "Reconnect appears stalled. Forcing fresh MQTT connect attempt.");
                 runOnUiThread(() -> statusTextView.setText("Reconnect stalled. Retrying fresh MQTT connection..."));
                 forceRestartMqttConnection();
                 scheduleReconnectWatchdog();
@@ -318,7 +293,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void forceRestartMqttConnection() {
-        Log.d(">>>>>200", "Forece restarting MQTT connection...");
+        Log.d("Reconnect", "Force restarting MQTT connection...");
         if (mqttClient == null || isActivityDestroying || isManualConnectInProgress) {
             return;
         }
@@ -327,7 +302,7 @@ public class MainActivity extends AppCompatActivity {
         mqttClient.disconnect().whenComplete((ignored, disconnectThrowable) -> {
             isManualConnectInProgress = false;
             if (disconnectThrowable != null) {
-                Log.w(">>>>>MainActivity", "Force disconnect before reconnect failed: " + disconnectThrowable.getMessage());
+                Log.w("Reconnect", "Force disconnect before reconnect failed: " + disconnectThrowable.getMessage());
             }
             connectToMqttBroker();
         });
