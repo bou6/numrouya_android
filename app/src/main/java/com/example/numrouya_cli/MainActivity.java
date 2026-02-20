@@ -13,6 +13,9 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
+import android.view.View;
+import android.widget.Button;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -47,6 +50,12 @@ public class MainActivity extends AppCompatActivity {
     private Mqtt3AsyncClient mqttClient;
     private MqttMessageAdapter adapter;
     private TextView statusTextView;
+    private ProgressBar waitingProgressBar;
+    private static final long WAITING_ANIMATION_TIMEOUT_MS = 60_000L;
+    private final Handler waitingHandler = new Handler(Looper.getMainLooper());
+    private boolean hasReceivedFirstMessage = false;
+    private final Runnable stopWaitingAnimationRunnable = this::hideWaitingAnimation;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -60,10 +69,12 @@ public class MainActivity extends AppCompatActivity {
 
         // Initialize UI components
         statusTextView = findViewById(R.id.statusTextView);
+        waitingProgressBar = findViewById(R.id.waitingProgressBar);
         RecyclerView recyclerView = findViewById(R.id.recyclerView);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         adapter = new MqttMessageAdapter();
         recyclerView.setAdapter(adapter);
+        startWaitingAnimation();
 
         // Initialize MQTT client
         initializeMqttClient();
@@ -218,6 +229,10 @@ public class MainActivity extends AppCompatActivity {
                         })
                         .orElse("");
                     runOnUiThread(() -> {
+                        if (!hasReceivedFirstMessage) {
+                            hasReceivedFirstMessage = true;
+                            hideWaitingAnimation();
+                        }
                         adapter.updateMessage(topic, payload);
                     });
                 })
@@ -235,9 +250,22 @@ public class MainActivity extends AppCompatActivity {
                 });
     }
 
+    private void startWaitingAnimation() {
+        hasReceivedFirstMessage = false;
+        waitingProgressBar.setVisibility(View.VISIBLE);
+        waitingHandler.removeCallbacks(stopWaitingAnimationRunnable);
+        waitingHandler.postDelayed(stopWaitingAnimationRunnable, WAITING_ANIMATION_TIMEOUT_MS);
+    }
+
+    private void hideWaitingAnimation() {
+        waitingHandler.removeCallbacks(stopWaitingAnimationRunnable);
+        waitingProgressBar.setVisibility(View.GONE);
+    }
+
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        waitingHandler.removeCallbacks(stopWaitingAnimationRunnable);
         if (mqttClient != null) {
             mqttClient.disconnect();
         }
