@@ -2,5 +2,15 @@
     <string name="app_name">numrouya</string>
     <string name="welcome_message">Welcome to Numrouya</string>
     <string name="next">Next</string>
-    <string name="back">Back</string>
+    <string name="network_restored_already_connected">Network restored. Already connected to MQTT.</string>
+    <string name="network_restored_connecting">Network restored. MQTT is connecting...</string>
+    <string name="network_restored_trying_connection">Network restored. Trying MQTT connection...</string>
+    <string name="network_restored_reconnecting_auto">Network restored. Reconnecting to MQTT (automatic)...</string>
+    <string name="undefined_state_restart">Undefined state, restart the app</string>
+    <string name="reconnecting">Reconnecting...</string>
+    <string name="disconnected">Disconnected</string>
+    <string name="connected">Connected</string>
+    <string name="connecting">Connecting</string>
+    <string name="subscribed_successfully">Subscribed successfully</string>
+    <string name="subscription_failed">Subscription failed: %1$s</string>
 </resources>

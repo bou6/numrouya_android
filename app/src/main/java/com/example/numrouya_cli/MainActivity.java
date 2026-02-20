@@ -90,29 +90,29 @@ public class MainActivity extends AppCompatActivity {
                     switch (mqttClient.getState()) {
                         case CONNECTED:
                             runOnUiThread(() -> {
-                                statusTextView.setText("Network restored. Already connected to MQTT.");
+                                statusTextView.setText(R.string.network_restored_already_connected);
                             });
                             break;
                         case CONNECTING:
                             runOnUiThread(() -> {
-                                statusTextView.setText("Network restored. MQTT is connecting...");
+                                statusTextView.setText(R.string.network_restored_connecting);
                             });
                             break;
                         case DISCONNECTED:
                             runOnUiThread(() -> {
-                                statusTextView.setText("Network restored. Trying MQTT connection...");
+                                statusTextView.setText(R.string.network_restored_trying_connection);
                             });
                             connectToMqttBroker();
                             break;
                         case DISCONNECTED_RECONNECT:
                         case CONNECTING_RECONNECT:
                             runOnUiThread(() -> {
-                                statusTextView.setText("Network restored. Reconnecting to MQTT (automatic)...");
+                                statusTextView.setText(R.string.network_restored_reconnecting_auto);
                             });
                             break;
                         default:
                             runOnUiThread(() -> {
-                                statusTextView.setText("Undefined state, restart the app");
+                                statusTextView.setText(R.string.undefined_state_restart);
                             });
                             break;
                     }
@@ -134,29 +134,28 @@ public class MainActivity extends AppCompatActivity {
             .addConnectedListener(context -> {
                 Log.d("Initialization", "Connected successfully");
                 runOnUiThread(() -> {
-                    statusTextView.setText("Connected successfully");
-                    Toast.makeText(MainActivity.this, "Connected successfully", Toast.LENGTH_SHORT).show();
+                    statusTextView.setText(R.string.connected);
+                    Toast.makeText(MainActivity.this, R.string.connected, Toast.LENGTH_SHORT).show();
                 });
                 subscribeToTopics();
             })
             .addDisconnectedListener(context -> {
                 Throwable cause = context.getCause();
                 Log.d("Initialization", "Disconnected :" + (cause != null ? cause.getMessage() : "Unknown cause"));
-                runOnUiThread(() -> {
+                if (mqttClient != null) {
+                    Log.d("Initialization", "Current MQTT state: " + mqttClient.getState());
                     switch (mqttClient.getState()) {
                         case DISCONNECTED_RECONNECT:
                         case CONNECTING_RECONNECT:
                             Log.d("Initialization", "Reconnecting...");
-                            statusTextView.setText("Reconnecting...");
+                            runOnUiThread(() -> statusTextView.setText(R.string.reconnecting));
                             break;
                         default:
                             Log.d("Initialization", "Disconnected "+ (cause != null ? "with cause: " + cause.getMessage() : "without specific cause"));
-                            statusTextView.setText("Disconnected ");
+                            runOnUiThread(() -> statusTextView.setText(R.string.disconnected));
+                            connectToMqttBroker();
                             break;
                     }
-                });
-                if (mqttClient != null && DISCONNECTED == mqttClient.getState()) {
-                    connectToMqttBroker();
                 }
             })
             .buildAsync();
@@ -171,26 +170,26 @@ public class MainActivity extends AppCompatActivity {
         switch (mqttClient.getState()) {
             case DISCONNECTED:
                 // write a debug message to logcat
-                Log.d("Start", "Disconnected. Attempting to connect...");
-                runOnUiThread(() -> statusTextView.setText("Disconnected. Attempting to connect..."));
+                Log.d("Start", "Disconnected");
+                runOnUiThread(() -> statusTextView.setText(R.string.disconnected));
                 connectToMqttBroker();
                 break;
             case CONNECTED:
                 Log.d("Start", "Already connected.");
-                runOnUiThread(() -> statusTextView.setText("Connected"));
+                runOnUiThread(() -> statusTextView.setText(R.string.connected));
                 break;
             /////// ########### these cases to be removed, as the client should handle reconnection automatically, and we will rely on the watchdog to recover if reconnection stalls
             case CONNECTING:
                 Log.d("Start", "Connecting ...");
-                runOnUiThread(() -> statusTextView.setText("Connecting ..."));
+                runOnUiThread(() -> statusTextView.setText(R.string.connecting));
                 break;
             case CONNECTING_RECONNECT:
                 Log.d("Start", "Reconnecting ...");
-                runOnUiThread(() -> statusTextView.setText("Reconnecting ..."));
+                runOnUiThread(() -> statusTextView.setText(R.string.reconnecting));
                 break;
             case DISCONNECTED_RECONNECT:
                 Log.d("Start", "Reconnecting ...");
-                runOnUiThread(() -> statusTextView.setText("Reconnecting ..."));
+                runOnUiThread(() -> statusTextView.setText(R.string.reconnecting));
                 break;
             default:
                 Log.d("Start", "Default");
@@ -210,7 +209,10 @@ public class MainActivity extends AppCompatActivity {
                 .send()
                 .whenComplete((connAck, throwable) -> {
                     if (throwable != null) {
-                            runOnUiThread(() -> statusTextView.setText("Failed to connect: " + throwable.getMessage()));
+                            runOnUiThread(() -> statusTextView.setText(getString(R.string.disconnected, throwable.getMessage())));
+                    }
+                    else{
+                        runOnUiThread(() -> statusTextView.setText(R.string.connected));
                     }
                 });
     }
@@ -240,11 +242,9 @@ public class MainActivity extends AppCompatActivity {
                 .whenComplete((subAck, throwable) -> {
                     runOnUiThread(() -> {
                         if (throwable == null) {
-                            statusTextView.setText("Subscribed to topics. Waiting for messages...");
-                            Toast.makeText(MainActivity.this, "Subscribed successfully", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(MainActivity.this, R.string.subscribed_successfully, Toast.LENGTH_SHORT).show();
                         } else {
-                            statusTextView.setText("Failed to subscribe: " + throwable.getMessage());
-                            Toast.makeText(MainActivity.this, "Subscription failed: " + throwable.getMessage(), Toast.LENGTH_LONG).show();
+                            Toast.makeText(MainActivity.this, getString(R.string.subscription_failed, throwable.getMessage()), Toast.LENGTH_LONG).show();
                         }
                     });
                 });
