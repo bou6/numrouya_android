@@ -9,8 +9,9 @@
     <string name="undefined_state_restart">Undefined state, restart the app</string>
     <string name="reconnecting">Reconnecting...</string>
     <string name="disconnected">Disconnected</string>
-    <string name="connected">Connected</string>
+    <string name="connected">Connected waiting for messages...</string>
     <string name="connecting">Connecting</string>
     <string name="subscribed_successfully">Subscribed successfully</string>
     <string name="subscription_failed">Subscription failed: %1$s</string>
+    <string name="no_message_received_timeout">No message received after Timeout.</string>
 </resources>
